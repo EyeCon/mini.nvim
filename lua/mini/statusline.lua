@@ -552,8 +552,8 @@ H.create_autocommands = function()
   au('DiagnosticChanged', '*', track_diagnostics, 'Track diagnostics')
 
   au('ColorScheme', '*', H.create_default_hl, 'Ensure colors')
-  au({ 'BufReadPost', 'BufWritePost' }, '*', function(data)
-    H.update_jujutsu_change_id(data.buf)
+  au({ 'BufReadPost', 'BufWritePost', 'FileReadPost', 'DirChanged' }, '*', function(data)
+    H.update_jujutsu_change_id(data.buf or vim.api.nvim_get_current_buf())
   end, 'Update Jujutsu change ID')
 end
 
