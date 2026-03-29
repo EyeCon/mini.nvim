@@ -642,13 +642,19 @@ H.get_jujutsu_change_id = function()
 end
 
 H.update_jujutsu_change_id = function(buf_id)
-  local handle = io.popen('jj log -r @ --template "{change_id.short()}" 2>/dev/null')
+  local cwd = vim.fn.getcwd()
+  local handle = io.popen(string.format('cd %s && jj log -r @ --no-graph --template "change_id.short()" 2>&1', vim.fn.shellescape(cwd)))
   if handle == nil then return end
 
   local result = handle:read('*a'):gsub('^%s+', ''):gsub('%s+$', '')
   handle:close()
 
-  H.jujutsu_change_id[buf_id] = result ~= '' and result or nil
+  -- Only store result if it's not empty and doesn't start with 'Error:'
+  if result ~= '' and not result:match('^Error:') then
+    H.jujutsu_change_id[buf_id] = result
+  else
+    H.jujutsu_change_id[buf_id] = nil
+  end
   vim.cmd('redrawstatus')
 end
 
