@@ -163,7 +163,13 @@ MiniStatusline.config = {
 
   -- Whether to use icons by default
   use_icons = true,
+
+  -- Jujutsu VCS template string for displaying change ID
+  jujutsu = {
+    template = 'change_id.short()',
+  },
 }
+
 --minidoc_afterlines_end
 
 -- Module functionality =======================================================
@@ -507,6 +513,11 @@ H.setup_config = function(config)
 
   H.check_type('use_icons', config.use_icons, 'boolean')
 
+  H.check_type('jujutsu', config.jujutsu, 'table', true)
+  if config.jujutsu then
+    H.check_type('jujutsu.template', config.jujutsu.template, 'string', true)
+  end
+
   return config
 end
 
@@ -642,14 +653,16 @@ H.get_jujutsu_change_id = function()
 end
 
 H.update_jujutsu_change_id = function(buf_id)
+  local config = H.get_config()
+  local template = (config.jujutsu and config.jujutsu.template) or 'change_id.short()'
+
   local cwd = vim.fn.getcwd()
-  local handle = io.popen(string.format('cd %s && jj log -r @ --no-graph --template "change_id.short()" 2>&1', vim.fn.shellescape(cwd)))
+  local handle = io.popen(string.format('cd %s && jj log -r @ --no-graph --template "%s" 2>&1', vim.fn.shellescape(cwd), template))
   if handle == nil then return end
 
   local result = handle:read('*a'):gsub('^%s+', ''):gsub('%s+$', '')
   handle:close()
 
-  -- Only store result if it's not empty and doesn't start with 'Error:'
   if result ~= '' and not result:match('^Error:') then
     H.jujutsu_change_id[buf_id] = result
   else
