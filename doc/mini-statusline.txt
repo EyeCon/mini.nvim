@@ -31,6 +31,9 @@ Suggested dependencies (provide extra functionality, will work without them):
 - Enabled |mini.diff| module for |MiniStatusline.section_diff()|.
   Falls back to using `lewis6991/gitsigns.nvim` plugin or shows nothing.
 
+- Installed 'jj' (Jujutsu VCS) for |MiniStatusline.section_jujutsu()|.
+  Shows empty string if not in a Jujutsu repository.
+
 # Setup ~
 
 This module needs a setup with `require('mini.statusline').setup({})`
@@ -58,7 +61,8 @@ Highlight depending on mode (second |MiniStatusline.section_mode()| output):
 
 Highlight used in default statusline:
 - `MiniStatuslineDevinfo` - for "dev info" group
-  (|MiniStatusline.section_git()| and |MiniStatusline.section_diagnostics()|).
+  (|MiniStatusline.section_git()|, |MiniStatusline.section_jujutsu()|,
+  |MiniStatusline.section_diff()|, and |MiniStatusline.section_diagnostics()|).
 - `MiniStatuslineFilename` - for |MiniStatusline.section_filename()| section.
 - `MiniStatuslineFileinfo` - for |MiniStatusline.section_fileinfo()| section.
 
@@ -86,6 +90,7 @@ This function is used as default value for active content: >lua
   function()
     local mode, mode_hl = MiniStatusline.section_mode({ trunc_width = 120 })
     local git           = MiniStatusline.section_git({ trunc_width = 40 })
+    local jujutsu       = MiniStatusline.section_jujutsu({ trunc_width = 40 })
     local diff          = MiniStatusline.section_diff({ trunc_width = 75 })
     local diagnostics   = MiniStatusline.section_diagnostics({ trunc_width = 75 })
     local lsp           = MiniStatusline.section_lsp({ trunc_width = 75 })
@@ -96,7 +101,7 @@ This function is used as default value for active content: >lua
 
     return MiniStatusline.combine_groups({
       { hl = mode_hl,                  strings = { mode } },
-      { hl = 'MiniStatuslineDevinfo',  strings = { git, diff, diagnostics, lsp } },
+      { hl = 'MiniStatuslineDevinfo',  strings = { git, jujutsu, diff, diagnostics, lsp } },
       '%<', -- Mark general truncate point
       { hl = 'MiniStatuslineFilename', strings = { filename } },
       '%=', -- End left alignment
@@ -147,6 +152,11 @@ Defaults ~
 
     -- Whether to use icons by default
     use_icons = true,
+
+    -- Jujutsu VCS template string for displaying change ID
+    jujutsu = {
+      template = 'change_id.short()',
+    },
   }
 <
 ------------------------------------------------------------------------------
@@ -223,6 +233,31 @@ If |mini.git| is not set up, section falls back on `lewis6991/gitsigns.nvim` dat
 or showing empty string.
 
 Empty string is returned if window width is lower than `args.trunc_width`.
+
+Parameters ~
+{args} `(table)` Section arguments. Use `args.icon` to supply your own icon.
+
+Return ~
+`(string)` Section string.
+
+------------------------------------------------------------------------------
+                                             *MiniStatusline.section_jujutsu()*
+                     `MiniStatusline.section_jujutsu`({args})
+Section for Jujutsu VCS information
+
+Shows the current change ID from a Jujutsu repository. Returns empty string
+if not in a Jujutsu repo or if window width is lower than `args.trunc_width`.
+
+The displayed information can be customized via `config.jujutsu.template`
+which is a Jujutsu template string. The default template `'change_id.short()'`
+shows the short change ID. Other useful templates include: >lua
+
+  -- Show change ID with description
+  template = 'change_id.short() ++ " " ++ description.first_line()'
+
+  -- Show full change ID
+  template = 'change_id'
+<
 
 Parameters ~
 {args} `(table)` Section arguments. Use `args.icon` to supply your own icon.
