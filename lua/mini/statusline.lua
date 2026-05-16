@@ -21,13 +21,13 @@
 --- - Nerd font (to support extra icons).
 ---
 --- - Enabled |mini.icons| module for |MiniStatusline.section_fileinfo()|.
----   Falls back to using `nvim-tree/nvim-web-devicons` plugin or shows nothing.
+---   Falls back to using 'nvim-tree/nvim-web-devicons' plugin or shows nothing.
 ---
 --- - Enabled |mini.git| module for |MiniStatusline.section_git()|.
----   Falls back to using `lewis6991/gitsigns.nvim` plugin or shows nothing.
+---   Falls back to using 'lewis6991/gitsigns.nvim' plugin or shows nothing.
 ---
 --- - Enabled |mini.diff| module for |MiniStatusline.section_diff()|.
----   Falls back to using `lewis6991/gitsigns.nvim` plugin or shows nothing.
+---   Falls back to using 'lewis6991/gitsigns.nvim' plugin or shows nothing.
 ---
 --- # Setup ~
 ---
@@ -164,7 +164,13 @@ MiniStatusline.config = {
 
   -- Whether to use icons by default
   use_icons = true,
+
+  -- Jujutsu VCS template string for displaying change ID
+  jujutsu = {
+    template = 'change_id.short()',
+  },
 }
+
 --minidoc_afterlines_end
 
 -- Module functionality =======================================================
@@ -194,7 +200,7 @@ end
 ---
 ---@param groups table Array of groups.
 ---
----@return string String suitable for |'statusline'|.
+---@return string String suitable for 'statusline'.
 MiniStatusline.combine_groups = function(groups)
   local parts = vim.tbl_map(function(s)
     if type(s) == 'string' then return s end
@@ -251,13 +257,32 @@ MiniStatusline.section_mode = function(args)
   return mode, mode_info.hl
 end
 
+--- Section for Jujutsu VCS information
+---
+--- Shows the current change ID from a Jujutsu repository.
+--- Returns empty string if not in a Jujutsu repo or if truncated.
+---
+---@param args __statusline_args Use `args.icon` to supply your own icon.
+---
+---@return __statusline_section
+MiniStatusline.section_jujutsu = function(args)
+  if MiniStatusline.is_truncated(args.trunc_width) then return '' end
+
+  local change_id = H.get_jujutsu_change_id()
+  if change_id == nil or change_id == '' then return '' end
+
+  local use_icons = H.use_icons or H.get_config().use_icons
+  local icon = args.icon or (use_icons and '' or 'Jj')
+  return icon .. ' ' .. change_id
+end
+
 --- Section for Git information
 ---
 --- Shows Git summary from |mini.git| (should be set up; recommended). To tweak
 --- formatting of what data is shown, modify buffer-local summary string directly
 --- as described in |MiniGit-examples|.
 ---
---- If |mini.git| is not set up, section falls back on `lewis6991/gitsigns.nvim` data
+--- If 'mini.git' is not set up, section falls back on 'lewis6991/gitsigns' data
 --- or showing empty string.
 ---
 --- Empty string is returned if window width is lower than `args.trunc_width`.
@@ -282,7 +307,7 @@ end
 --- formatting of what data is shown, modify buffer-local summary string directly
 --- as described in |MiniDiff-diff-summary|.
 ---
---- If |mini.diff| is not set up, section falls back on `lewis6991/gitsigns.nvim` data
+--- If 'mini.diff' is not set up, section falls back on 'lewis6991/gitsigns' data
 --- or showing empty string.
 ---
 --- Empty string is returned if window width is lower than `args.trunc_width`.
@@ -305,7 +330,7 @@ end
 ---
 --- Shows nothing if diagnostics is disabled, no diagnostic is set, or for short
 --- output. Otherwise uses |vim.diagnostic.get()| to compute and show number of
---- errors (`E`), warnings (`W`), information (`I`), and hints (`H`).
+--- errors ('E'), warnings ('W'), information ('I'), and hints ('H').
 ---
 --- Short output is returned if window width is lower than `args.trunc_width`.
 ---
@@ -318,10 +343,10 @@ end
 MiniStatusline.section_diagnostics = function(args)
   if MiniStatusline.is_truncated(args.trunc_width) then return '' end
 
-  -- Construct string parts. NOTE: call `vim.diagnostic.is_enabled()` *after*
+  -- Construct string parts. NOTE: call `diagnostic_is_disabled()` *after*
   -- check for present `count` to not source `vim.diagnostic` on startup.
   local count = H.diagnostic_counts[vim.api.nvim_get_current_buf()]
-  if count == nil or not vim.diagnostic.is_enabled({ bufnr = 0 }) then return '' end
+  if count == nil or H.diagnostic_is_disabled() then return '' end
 
   local severity, signs, t = vim.diagnostic.severity, args.signs or {}, {}
   for _, level in ipairs(H.diagnostic_levels) do
@@ -381,9 +406,9 @@ end
 
 --- Section for file information
 ---
---- Shows |'filetype'|, |'fileencoding'| / |'encoding'|, |'fileformat'|, and buffer size.
---- Short output has only non-empty |'filetype'| and is returned if window width is
---- lower than `args.trunc_width` or buffer is not normal (as per |'buftype'|).
+--- Shows 'filetype', 'fileencoding' / 'encoding', 'fileformat', and buffer size.
+--- Short output has only non-empty 'filetype' and is returned if window width is
+--- lower than `args.trunc_width` or buffer is not normal (as per 'buftype').
 ---
 --- Buffer size is computed based on current text, not file's saved version.
 ---
@@ -489,6 +514,11 @@ H.setup_config = function(config)
 
   H.check_type('use_icons', config.use_icons, 'boolean')
 
+  H.check_type('jujutsu', config.jujutsu, 'table', true)
+  if config.jujutsu then
+    H.check_type('jujutsu.template', config.jujutsu.template, 'string', true)
+  end
+
   return config
 end
 
@@ -509,11 +539,7 @@ H.create_autocommands = function()
 
   -- Use `schedule_wrap()` because at `LspDetach` server is still present
   local track_lsp = vim.schedule_wrap(function(data)
-    if not vim.api.nvim_buf_is_valid(data.buf) then
-      H.attached_lsp[data.buf] = nil
-      return
-    end
-    H.attached_lsp[data.buf] = string.rep('+', #vim.lsp.get_clients({ bufnr = data.buf }))
+    H.attached_lsp[data.buf] = vim.api.nvim_buf_is_valid(data.buf) and H.compute_attached_lsp(data.buf) or nil
     vim.cmd('redrawstatus')
   end)
   au({ 'LspAttach', 'LspDetach' }, '*', track_lsp, 'Track LSP clients')
@@ -527,6 +553,9 @@ H.create_autocommands = function()
   au('DiagnosticChanged', '*', track_diagnostics, 'Track diagnostics')
 
   au('ColorScheme', '*', H.create_default_hl, 'Ensure colors')
+  au({ 'BufReadPost', 'BufWritePost', 'FileReadPost', 'DirChanged' }, '*', function(data)
+    H.update_jujutsu_change_id(data.buf or vim.api.nvim_get_current_buf())
+  end, 'Update Jujutsu change ID')
 end
 
 --stylua: ignore
@@ -561,7 +590,7 @@ end
 local CTRL_S = vim.api.nvim_replace_termcodes('<C-S>', true, true, true)
 local CTRL_V = vim.api.nvim_replace_termcodes('<C-V>', true, true, true)
 
---stylua: ignore
+-- stylua: ignore start
 H.modes = setmetatable({
   ['n']    = { long = 'Normal',   short = 'N',   hl = 'MiniStatuslineModeNormal' },
   ['v']    = { long = 'Visual',   short = 'V',   hl = 'MiniStatuslineModeVisual' },
@@ -582,6 +611,7 @@ H.modes = setmetatable({
     return   { long = 'Unknown',  short = 'U',   hl = '%#MiniStatuslineModeOther#' }
   end,
 })
+-- stylua: ignore end
 
 -- Default content ------------------------------------------------------------
 --stylua: ignore
@@ -589,6 +619,7 @@ H.default_content_active = function()
   H.use_icons = H.get_config().use_icons
   local mode, mode_hl = MiniStatusline.section_mode({ trunc_width = 120 })
   local git           = MiniStatusline.section_git({ trunc_width = 40 })
+  local jujutsu       = MiniStatusline.section_jujutsu({ trunc_width = 40 })
   local diff          = MiniStatusline.section_diff({ trunc_width = 75 })
   local diagnostics   = MiniStatusline.section_diagnostics({ trunc_width = 75 })
   local lsp           = MiniStatusline.section_lsp({ trunc_width = 75 })
@@ -603,7 +634,7 @@ H.default_content_active = function()
   -- sections, etc.)
   return MiniStatusline.combine_groups({
     { hl = mode_hl,                  strings = { mode } },
-    { hl = 'MiniStatuslineDevinfo',  strings = { git, diff, diagnostics, lsp } },
+    { hl = 'MiniStatuslineDevinfo',  strings = { git, jujutsu, diff, diagnostics, lsp } },
     '%<', -- Mark general truncate point
     { hl = 'MiniStatuslineFilename', strings = { filename } },
     '%=', -- End left alignment
@@ -613,6 +644,59 @@ H.default_content_active = function()
 end
 
 H.default_content_inactive = function() return '%#MiniStatuslineInactive#%F%=' end
+
+-- Jujutsu VCS ---------------------------------------------------------------
+H.jujutsu_change_id = {}
+
+H.get_jujutsu_change_id = function()
+  local buf_id = vim.api.nvim_get_current_buf()
+  return H.jujutsu_change_id[buf_id] or ''
+end
+
+H.update_jujutsu_change_id = function(buf_id)
+  local config = H.get_config()
+  local template = (config.jujutsu and config.jujutsu.template) or 'change_id.short()'
+
+  local cwd = vim.fn.getcwd()
+  local handle = io.popen(string.format('cd %s && jj log -r @ --no-graph --template "%s" 2>&1', vim.fn.shellescape(cwd), template))
+  if handle == nil then return end
+
+  local result = handle:read('*a'):gsub('^%s+', ''):gsub('%s+$', '')
+  handle:close()
+
+  if result ~= '' and not result:match('^Error:') then
+    H.jujutsu_change_id[buf_id] = result
+  else
+    H.jujutsu_change_id[buf_id] = nil
+  end
+  vim.cmd('redrawstatus')
+end
+
+-- LSP ------------------------------------------------------------------------
+H.compute_attached_lsp = function(buf_id) return string.rep('+', vim.tbl_count(H.get_buf_lsp_clients(buf_id))) end
+
+H.get_buf_lsp_clients = function(buf_id) return vim.lsp.get_clients({ bufnr = buf_id }) end
+-- NOTE: Use `has('nvim-0.xx')` instead of directly checking presence of target
+-- function to avoid loading `vim.xxx` modules at `require('mini.statusline')`.
+-- This visibly improves startup time.
+if vim.fn.has('nvim-0.10') == 0 then
+  H.get_buf_lsp_clients = function(buf_id) return vim.lsp.buf_get_clients(buf_id) end
+end
+
+-- Diagnostics ----------------------------------------------------------------
+H.get_diagnostic_count = function(buf_id) return vim.diagnostic.count(buf_id) end
+if vim.fn.has('nvim-0.10') == 0 then
+  H.get_diagnostic_count = function(buf_id)
+    local res = {}
+    for _, d in ipairs(vim.diagnostic.get(buf_id)) do
+      res[d.severity] = (res[d.severity] or 0) + 1
+    end
+    return res
+  end
+end
+
+H.diagnostic_is_disabled = function() return not vim.diagnostic.is_enabled({ bufnr = 0 }) end
+if vim.fn.has('nvim-0.10') == 0 then H.diagnostic_is_disabled = function() return vim.diagnostic.is_disabled(0) end end
 
 -- Utilities ------------------------------------------------------------------
 H.error = function(msg) error('(mini.statusline) ' .. msg, 0) end
