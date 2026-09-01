@@ -31,7 +31,7 @@ Suggested dependencies (provide extra functionality, will work without them):
 - Enabled |mini.diff| module for |MiniStatusline.section_diff()|.
   Falls back to using `lewis6991/gitsigns.nvim` plugin or shows nothing.
 
-- Installed 'jj' (Jujutsu VCS) for |MiniStatusline.section_jujutsu()|.
+- Installed `jj` (Jujutsu VCS) for |MiniStatusline.section_jujutsu()|.
   Shows empty string if not in a Jujutsu repository.
 
 # Setup ~
