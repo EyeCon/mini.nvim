@@ -221,6 +221,31 @@ Return ~
 `(...)` Section string and mode's highlight group.
 
 ------------------------------------------------------------------------------
+                                              *MiniStatusline.section_jujutsu()*
+                    `MiniStatusline.section_jujutsu`({args})
+Section for Jujutsu VCS information
+
+Shows the current change ID from a Jujutsu repository.
+Returns empty string if not in a Jujutsu repo or if truncated.
+
+The displayed information can be customized via `config.jujutsu.template`
+which is a Jujutsu template string. The default template `'change_id.short()'`
+shows the short change ID. Other useful templates include: >lua
+
+  -- Show change ID with description
+  template = 'change_id.short() ++ " " ++ description.first_line()'
+
+  -- Show full change ID
+  template = 'change_id'
+<
+
+Parameters ~
+{args} `(table)` Section arguments. Use `args.icon` to supply your own icon.
+
+Return ~
+`(string)` Section string.
+
+------------------------------------------------------------------------------
                                                   *MiniStatusline.section_git()*
                       `MiniStatusline.section_git`({args})
 Section for Git information
@@ -233,31 +258,6 @@ If |mini.git| is not set up, section falls back on `lewis6991/gitsigns.nvim` dat
 or showing empty string.
 
 Empty string is returned if window width is lower than `args.trunc_width`.
-
-Parameters ~
-{args} `(table)` Section arguments. Use `args.icon` to supply your own icon.
-
-Return ~
-`(string)` Section string.
-
-------------------------------------------------------------------------------
-                                             *MiniStatusline.section_jujutsu()*
-                     `MiniStatusline.section_jujutsu`({args})
-Section for Jujutsu VCS information
-
-Shows the current change ID from a Jujutsu repository. Returns empty string
-if not in a Jujutsu repo or if window width is lower than `args.trunc_width`.
-
-The displayed information can be customized via `config.jujutsu.template`
-which is a Jujutsu template string. The default template `'change_id.short()'`
-shows the short change ID. Other useful templates include: >lua
-
-  -- Show change ID with description
-  template = 'change_id.short() ++ " " ++ description.first_line()'
-
-  -- Show full change ID
-  template = 'change_id'
-<
 
 Parameters ~
 {args} `(table)` Section arguments. Use `args.icon` to supply your own icon.

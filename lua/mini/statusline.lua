@@ -29,6 +29,9 @@
 --- - Enabled |mini.diff| module for |MiniStatusline.section_diff()|.
 ---   Falls back to using `lewis6991/gitsigns.nvim` plugin or shows nothing.
 ---
+--- - Installed `jj` (Jujutsu VCS) for |MiniStatusline.section_jujutsu()|.
+---   Shows empty string if not in a Jujutsu repository.
+---
 --- # Setup ~
 ---
 --- This module needs a setup with `require('mini.statusline').setup({})`
@@ -56,7 +59,8 @@
 ---
 --- Highlight used in default statusline:
 --- - `MiniStatuslineDevinfo` - for "dev info" group
----   (|MiniStatusline.section_git()| and |MiniStatusline.section_diagnostics()|).
+---   (|MiniStatusline.section_git()|, |MiniStatusline.section_jujutsu()|,
+---   |MiniStatusline.section_diff()|, and |MiniStatusline.section_diagnostics()|).
 --- - `MiniStatuslineFilename` - for |MiniStatusline.section_filename()| section.
 --- - `MiniStatuslineFileinfo` - for |MiniStatusline.section_fileinfo()| section.
 ---
@@ -262,6 +266,17 @@ end
 ---
 --- Shows the current change ID from a Jujutsu repository.
 --- Returns empty string if not in a Jujutsu repo or if truncated.
+---
+--- The displayed information can be customized via `config.jujutsu.template`
+--- which is a Jujutsu template string. The default template `'change_id.short()'`
+--- shows the short change ID. Other useful templates include: >lua
+---
+---   -- Show change ID with description
+---   template = 'change_id.short() ++ " " ++ description.first_line()'
+---
+---   -- Show full change ID
+---   template = 'change_id'
+--- <
 ---
 ---@param args __statusline_args Use `args.icon` to supply your own icon.
 ---
