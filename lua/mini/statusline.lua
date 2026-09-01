@@ -673,8 +673,11 @@ H.update_jujutsu_change_id = function(buf_id)
   local config = H.get_config()
   local template = (config.jujutsu and config.jujutsu.template) or 'change_id.short()'
 
-  local cwd = vim.fn.getcwd()
-  local handle = io.popen(string.format('cd %s && jj log -r @ --no-graph --template "%s" 2>&1', vim.fn.shellescape(cwd), template))
+  -- Run `jj` in the directory of the buffer's file to support cases when
+  -- Neovim's current directory differs from the document's directory
+  local buf_name = vim.api.nvim_buf_get_name(buf_id)
+  local target_dir = buf_name ~= '' and vim.fn.fnamemodify(buf_name, ':h') or vim.fn.getcwd()
+  local handle = io.popen(string.format('cd %s && jj log -r @ --no-graph --template "%s" 2>&1', vim.fn.shellescape(target_dir), template))
   if handle == nil then return end
 
   local result = handle:read('*a'):gsub('^%s+', ''):gsub('%s+$', '')
